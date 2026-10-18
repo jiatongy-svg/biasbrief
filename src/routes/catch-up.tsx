@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Shell, Chip } from "@/components/Shell";
 import { loadPrefs, type Prefs } from "@/lib/data";
-import { YouTubeFeed } from "@/components/YouTubeFeed";
+import { DemoDigestView } from "@/components/DemoDigest";
+import { DEMO_DIGESTS } from "@/data/demoDigests";
 
 export const Route = createFileRoute("/catch-up")({
   head: () => ({
@@ -22,8 +23,25 @@ export const Route = createFileRoute("/catch-up")({
   component: CatchUp,
 });
 
-// Roughly how many videos per section fit in the reading time.
-const PER_SECTION: Record<number, number> = { 1: 2, 3: 4, 10: 8 };
+/** The two curated demo digests; the active fandom mode decides which one applies. */
+function DigestFor({ prefs, days, mins }: { prefs: Prefs; days: number; mins: number }) {
+  const digest =
+    days !== 7 || mins !== 3 || prefs.group !== "aespa"
+      ? null
+      : prefs.stanType === "Solo stan" && prefs.members.includes("karina")
+        ? DEMO_DIGESTS["karina-solo"]
+        : prefs.stanType === "CP fan" && prefs.cps.includes("karina+winter")
+          ? DEMO_DIGESTS["winrina-cp"]
+          : null;
+  if (!digest)
+    return (
+      <p role="status" className="mt-8 rounded-lg border border-border bg-muted p-4 text-sm">
+        Personalized digest preview unavailable. Currently, our demo supports Karina Solo and
+        Winrina CP for a 7-day, 3-minute recap.
+      </p>
+    );
+  return <DemoDigestView digest={digest} />;
+}
 
 function CatchUp() {
   const [prefs, setPrefs] = useState<Prefs | null | undefined>(undefined);
@@ -61,16 +79,7 @@ function CatchUp() {
           to catch up on your fandom.
         </p>
       )}
-      {/* The 7-day feed covers 3 and 7 days; filtering keeps one cached search per window. */}
-      {prefs && (
-        <YouTubeFeed
-          prefs={prefs}
-          days={days > 7 ? 14 : 7}
-          maxAgeDays={days}
-          filterCuratedByDate
-          perSection={PER_SECTION[mins] ?? 4}
-        />
-      )}
+      {prefs && <DigestFor prefs={prefs} days={days} mins={mins} />}
     </Shell>
   );
 }

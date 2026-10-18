@@ -281,7 +281,7 @@ function FeedSection({
       </h3>
       <p className="mb-4 mt-1 text-sm text-muted-foreground">{blurb}</p>
       {entries.length ? (
-        <ol className="grid items-start gap-4 md:grid-cols-2">
+        <ol className="gap-4 md:columns-2 [&>li]:mb-4 [&>li]:break-inside-avoid">
           {entries.map((e) =>
             e.kind === "youtube" ? (
               <VideoCard key={e.key} video={e.video} artist={artist} prefs={prefs} />

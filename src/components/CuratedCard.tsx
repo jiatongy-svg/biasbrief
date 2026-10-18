@@ -59,8 +59,11 @@ function XEmbed({ item }: { item: CuratedFeedItem }) {
   const target = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"loading" | "ok" | "failed">("loading");
   useEffect(() => {
-    const el = target.current;
-    if (!el) return;
+    const host = target.current;
+    if (!host) return;
+    // Fresh node per run: a late createTweet from a cancelled run can't add a duplicate here.
+    const el = document.createElement("div");
+    host.appendChild(el);
     let cancelled = false;
     setState("loading");
     // Show the fallback if X hasn't rendered after 20s, but still swap the embed in if it arrives later.
@@ -81,7 +84,7 @@ function XEmbed({ item }: { item: CuratedFeedItem }) {
     return () => {
       cancelled = true;
       clearTimeout(timer);
-      el.replaceChildren();
+      el.remove();
     };
   }, [item.platform_post_id]);
   return (
