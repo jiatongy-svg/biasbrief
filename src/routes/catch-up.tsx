@@ -1,17 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Shell, Chip } from "@/components/Shell";
-import { DigestList } from "@/components/DigestList";
-import { buildDigest, loadPrefs, type Prefs } from "@/lib/data";
+import { loadPrefs, type Prefs } from "@/lib/data";
 import { YouTubeFeed } from "@/components/YouTubeFeed";
-import { youtubeQueryOptions } from "@/lib/youtube-query";
 
 export const Route = createFileRoute("/catch-up")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(youtubeQueryOptions),
   head: () => ({
     meta: [
       { title: "Catch-up Mode — BiasBrief" },
-      { name: "description", content: "Been away? Summarize the last 1, 3 or 7 days of your fandom in 1, 3 or 10 minutes." },
+      {
+        name: "description",
+        content:
+          "Been away? Catch up on the last 3, 7 or 14 days of your fandom in 1, 3 or 10 minutes.",
+      },
       { property: "og:title", content: "Catch-up Mode — BiasBrief" },
       { property: "og:description", content: "Catch up on your fandom at your own pace." },
       { property: "og:type", content: "website" },
@@ -21,28 +22,54 @@ export const Route = createFileRoute("/catch-up")({
   component: CatchUp,
 });
 
+// Roughly how many videos per section fit in the reading time.
+const PER_SECTION: Record<number, number> = { 1: 2, 3: 4, 10: 8 };
+
 function CatchUp() {
-  const [prefs, setPrefs] = useState<Prefs | null>(null);
-  const [days, setDays] = useState(3);
+  const [prefs, setPrefs] = useState<Prefs | null | undefined>(undefined);
+  const [days, setDays] = useState(7);
   const [mins, setMins] = useState(3);
   useEffect(() => setPrefs(loadPrefs()), []);
-  const items = buildDigest(prefs, days, mins);
 
   return (
     <Shell>
       <h1 className="font-display text-4xl font-bold">Catch-up mode</h1>
-      <p className="mt-2 text-muted-foreground">Been away? We'll fit what matters into your time.</p>
+      <p className="mt-2 text-muted-foreground">
+        Been away? We'll fit what matters into your time.
+      </p>
       <div className="mt-6 space-y-4">
         <Row label="I missed">
-          {[1, 3, 7].map((d) => <Chip key={d} on={days === d} onClick={() => setDays(d)}>{d} day{d > 1 ? "s" : ""}</Chip>)}
+          {[3, 7, 14].map((d) => (
+            <Chip key={d} on={days === d} onClick={() => setDays(d)}>
+              {d} days
+            </Chip>
+          ))}
         </Row>
         <Row label="I have">
-          {[1, 3, 10].map((m) => <Chip key={m} on={mins === m} onClick={() => setMins(m)}>{m} min</Chip>)}
+          {[1, 3, 10].map((m) => (
+            <Chip key={m} on={mins === m} onClick={() => setMins(m)}>
+              {m} min
+            </Chip>
+          ))}
         </Row>
       </div>
-      <YouTubeFeed days={days} limit={mins * 2} />
-      <h2 className="font-display mt-8 text-2xl font-bold">LUMIÈRE · Sample catch-up</h2>
-      <div className="mt-5"><DigestList items={items} /></div>
+      {prefs === null && (
+        <p className="mt-6 text-sm">
+          <Link to="/" className="text-primary underline">
+            Set your profile
+          </Link>{" "}
+          to catch up on your fandom.
+        </p>
+      )}
+      {/* The 7-day feed covers 3 and 7 days; filtering keeps one cached search per window. */}
+      {prefs && (
+        <YouTubeFeed
+          prefs={prefs}
+          days={days > 7 ? 14 : 7}
+          maxAgeDays={days}
+          perSection={PER_SECTION[mins] ?? 4}
+        />
+      )}
     </Shell>
   );
 }

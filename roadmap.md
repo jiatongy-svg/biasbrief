@@ -5,4 +5,7 @@
 - [x] Add Instagram and Threads permission reviews and verify all three platforms.
 - [x] Add a social authorization page with X permissions and navigation.
 - [x] Verify the authorization page and existing navigation.
-- [ ] Connect each user's X account — blocked by workspace X client setup and app sign-in.
+- [ ] Connect each user's X account — blocked by workspace X client setup and app sign-in.- [x] Replace the fictional pilot with four real groups (aespa full demo; BLACKPINK, Stray Kids, SEVENTEEN basic) and verified official YouTube channels.
+- [x] Personalized YouTube feed: official uploads, member and CP searches, 7/14-day windows, transparent engagement ranking, shared cache with stale fallback.
+- [ ] Verify YG Entertainment's channel ID for BLACKPINK agency uploads.
+- [ ] Verify the live aespa feed end-to-end with GOOGLE_API_KEY set.
