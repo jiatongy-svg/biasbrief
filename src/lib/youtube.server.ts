@@ -23,9 +23,13 @@ interface Entry<T> {
 const cache = new Map<string, Entry<unknown>>();
 export const clearYouTubeCache = () => cache.clear();
 
-type Failure = "quota" | "forbidden" | "unavailable";
+type Failure = "quota" | "forbidden" | "bad_key" | "unavailable";
 class YouTubeError extends Error {
-  constructor(readonly kind: Failure) {
+  /** `detail` is a status/reason code or error name only — never a provider body or URL. */
+  constructor(
+    readonly kind: Failure,
+    readonly detail: string,
+  ) {
     super(kind);
   }
 }
@@ -34,8 +38,12 @@ const FAILURE_NOTICE: Record<Failure, string> = {
   quota: "YouTube's daily API quota is used up.",
   forbidden:
     "YouTube refused the request. Check that YouTube Data API v3 is enabled and the key allows it.",
+  bad_key: "YouTube rejected the API key. Check the GOOGLE_API_KEY value on the server.",
   unavailable: "YouTube is temporarily unavailable.",
 };
+
+const QUOTA_REASONS = ["quotaExceeded", "dailyLimitExceeded", "rateLimitExceeded"];
+const KEY_REASONS = ["keyInvalid", "keyExpired", "API_KEY_INVALID"];
 
 async function ytGet<T>(
   path: string,
@@ -49,27 +57,31 @@ async function ytGet<T>(
       headers: { "X-Goog-Api-Key": apiKey },
       signal: AbortSignal.timeout(12_000),
     });
-  } catch {
-    throw new YouTubeError("unavailable");
+  } catch (error) {
+    const name = error instanceof Error ? error.name : "FetchError";
+    console.error("YouTube request failed", path, name);
+    throw new YouTubeError("unavailable", name);
   }
   if (response.ok) return (await response.json()) as T;
   // Never log provider bodies or URLs: they can echo credentials. Only read the reason code.
-  console.error("YouTube request failed", path, response.status);
-  if (response.status === 403) {
-    const reason = await response.json().then(
-      (b: { error?: { errors?: { reason?: string }[] } }) => b.error?.errors?.[0]?.reason,
-      () => undefined,
-    );
-    throw new YouTubeError(
-      reason === "quotaExceeded" ||
-        reason === "dailyLimitExceeded" ||
-        reason === "rateLimitExceeded"
-        ? "quota"
-        : "forbidden",
-    );
-  }
-  throw new YouTubeError("unavailable");
+  const reason = await response.json().then(
+    (b: { error?: { errors?: { reason?: string }[]; details?: { reason?: string }[] } }) =>
+      b.error?.details?.find((d) => d.reason)?.reason ?? b.error?.errors?.[0]?.reason,
+    () => undefined,
+  );
+  const code = /^[\w.-]{1,64}$/.test(reason ?? "") ? reason : undefined;
+  console.error("YouTube request failed", path, response.status, code);
+  const detail = `HTTP ${response.status}${code ? ` ${code}` : ""}`;
+  if (code && QUOTA_REASONS.includes(code)) throw new YouTubeError("quota", detail);
+  if (code && KEY_REASONS.includes(code)) throw new YouTubeError("bad_key", detail);
+  if (response.status === 403) throw new YouTubeError("forbidden", detail);
+  throw new YouTubeError("unavailable", detail);
 }
+
+const asYouTubeError = (error: unknown) =>
+  error instanceof YouTubeError
+    ? error
+    : new YouTubeError("unavailable", error instanceof Error ? error.name : "UnknownError");
 
 /** Fresh cache hit, else fetch; on failure fall back to a stale entry if one exists. */
 async function cached<T>(
@@ -77,7 +89,7 @@ async function cached<T>(
   ttl: number,
   now: number,
   load: () => Promise<T>,
-): Promise<{ value: T; fetchedAt: number; stale: Failure | null }> {
+): Promise<{ value: T; fetchedAt: number; stale: YouTubeError | null }> {
   const hit = cache.get(key) as Entry<T> | undefined;
   if (hit && now - hit.fetchedAt < ttl) return { ...hit, stale: null };
   try {
@@ -85,7 +97,7 @@ async function cached<T>(
     cache.set(key, { value, fetchedAt: now });
     return { value, fetchedAt: now, stale: null };
   } catch (error) {
-    if (hit && error instanceof YouTubeError) return { ...hit, stale: error.kind };
+    if (hit && error instanceof YouTubeError) return { ...hit, stale: error };
     throw error;
   }
 }
@@ -211,7 +223,7 @@ async function fetchStats(ids: string[], now: number, apiKey: string, fetcher: t
     if (hit && now - hit.fetchedAt < TTL.stats) out.set(id, hit.value);
     else missing.push(id);
   }
-  let failure: Failure | null = null;
+  let failure: YouTubeError | null = null;
   for (let i = 0; i < missing.length; i += 50) {
     const batch = missing.slice(i, i + 50);
     try {
@@ -233,7 +245,7 @@ async function fetchStats(ids: string[], now: number, apiKey: string, fetcher: t
         out.set(item.id, stats);
       }
     } catch (error) {
-      failure = error instanceof YouTubeError ? error.kind : "unavailable";
+      failure = asYouTubeError(error);
       // Stale stats beat no stats; never invent numbers.
       for (const id of batch) {
         const hit = cache.get(`stats|${id}`) as Entry<Stats> | undefined;
@@ -267,22 +279,25 @@ export async function buildFeed(
   const results = await Promise.allSettled(tasks);
 
   const failures = new Set<Failure>();
+  const details = new Set<string>();
+  const fail = (e: YouTubeError) => {
+    failures.add(e.kind);
+    details.add(e.detail);
+  };
   const raw: RawVideo[] = [];
   let updatedAt = 0;
   let servedFromCache = false;
   let succeeded = 0;
   for (const r of results) {
     if (r.status === "rejected") {
-      failures.add(r.reason instanceof YouTubeError ? r.reason.kind : "unavailable");
+      fail(asYouTubeError(r.reason));
       continue;
     }
     succeeded++;
     raw.push(...r.value.value);
     updatedAt = Math.max(updatedAt, r.value.fetchedAt);
     if (r.value.fetchedAt < now) servedFromCache = true;
-    if (r.value.stale) {
-      failures.add(r.value.stale);
-    }
+    if (r.value.stale) fail(r.value.stale);
   }
   const { stats, failure } = await fetchStats(
     [...new Set(raw.map((v) => v.video_id))],
@@ -290,10 +305,11 @@ export async function buildFeed(
     apiKey,
     fetcher,
   );
-  if (failure) failures.add(failure);
+  if (failure) fail(failure);
 
   const notices: string[] = [];
   for (const f of failures) notices.push(FAILURE_NOTICE[f]);
+  if (details.size) notices.push(`Error details: ${[...details].join(", ")}.`);
   if (failures.size && succeeded)
     notices.push(
       "Showing the most recent results we could load; some may come from an earlier fetch.",
