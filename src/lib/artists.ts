@@ -18,6 +18,8 @@ export interface Pairing {
   members: [string, string];
   /** Recognized fandom CP name, if one is widely used. */
   name?: string;
+  /** Other fandom names for the same pairing (romanizations, Korean names). */
+  aliases?: string[];
 }
 
 export interface Channel {
@@ -72,7 +74,12 @@ export const ARTISTS: Artist[] = [
     verified_source_urls: ["https://www.youtube.com/@aespa", "https://www.youtube.com/@SMTOWN"],
     demo_support_status: "full",
     pairings: [
-      { id: "karina+winter", members: ["karina", "winter"], name: "Winrina" },
+      {
+        id: "karina+winter",
+        members: ["karina", "winter"],
+        name: "Winrina",
+        aliases: ["Jiminjeong", "Jinminjeong", "지민정", "유지민 × 김민정"],
+      },
       { id: "giselle+ningning", members: ["giselle", "ningning"] },
       { id: "karina+giselle", members: ["karina", "giselle"] },
       { id: "winter+ningning", members: ["winter", "ningning"] },
@@ -190,10 +197,15 @@ export function resolvePairing(artist: Artist, id: string): Pairing | undefined 
 
 export function pairingLabel(artist: Artist, p: Pairing) {
   const names = p.members.map((id) => getMember(artist, id)?.stage_name ?? id).join(" × ");
-  return p.name ? `${p.name} (${names})` : names;
+  const label = [p.name, p.aliases?.[0]].filter(Boolean).join(" / ");
+  return label ? `${label} (${names})` : names;
 }
 
 /** Groups whose channel config is incomplete, for reporting instead of guessing IDs. */
+/** Every fandom name for a pairing, for matching titles and captions. */
+export const pairingNames = (p: Pairing) =>
+  [p.name, ...(p.aliases ?? [])].filter((n): n is string => !!n);
+
 export function missingChannelConfig() {
   return ARTISTS.flatMap((a) => [
     ...(a.official_youtube_channel_ids.length

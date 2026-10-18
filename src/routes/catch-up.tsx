@@ -67,6 +67,7 @@ function CatchUp() {
           prefs={prefs}
           days={days > 7 ? 14 : 7}
           maxAgeDays={days}
+          filterCuratedByDate
           perSection={PER_SECTION[mins] ?? 4}
         />
       )}

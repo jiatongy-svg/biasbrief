@@ -164,13 +164,12 @@
 .font-display { font-family: var(--font-display); }
 .card-pop { box-shadow: var(--shadow-pop); transition: transform .15s; }
 .card-pop:hover { transform: translateY(-2px); }
-.stage-image { object-position: center; }
+.hero-slide { transition: opacity 1.2s ease-in-out; }
 .stage-title { font-size: 64px; line-height: 1; }
 .connection-card { border-top: 4px solid var(--primary); }
 .connection-card:nth-child(2) { border-top-color: var(--secondary); }
 .connection-card:nth-child(3) { border-top-color: var(--foreground); }
 @media (max-width: 640px) {
-  .stage-image { object-position: 62% center; opacity: .55; }
   .stage-title { font-size: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -112,7 +112,7 @@ describe("Personalized searches", () => {
       (q) => q.category === "cp",
     );
     expect(qs.map((q) => q.q)).toEqual([
-      "Winrina|Karina Winter aespa",
+      "Winrina|Jiminjeong|Karina Winter aespa",
       "aespa Karina Winter|카리나 윈터 moments|edit|compilation|interaction",
     ]);
   });

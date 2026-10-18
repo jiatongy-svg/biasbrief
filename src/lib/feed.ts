@@ -3,6 +3,7 @@
 import {
   getMember,
   pairingLabel,
+  pairingNames,
   resolvePairing,
   type Artist,
   type DemoSupport,
@@ -140,7 +141,10 @@ export function buildQueries(artist: Artist, req: FeedRequest): FeedQuery[] {
       queries.push({
         category: "cp",
         pairingId: p.id,
-        q: `${p.name}|${a.stage_name} ${b.stage_name} ${g}`,
+        q: `${pairingNames(p)
+          .filter((n) => /^[\x20-\x7e]+$/.test(n))
+          .slice(0, 2)
+          .join("|")}|${a.stage_name} ${b.stage_name} ${g}`,
       });
     if (!p.name || index === 0) {
       queries.push({
@@ -196,14 +200,19 @@ export function classify(artist: Artist, video: RawVideo, req: FeedRequest) {
     .map((id) => resolvePairing(artist, id)!)
     .find(
       (p) =>
-        (p.name && mentions(text, p.name)) ||
+        pairingNames(p).some((n) => mentions(text, n)) ||
         (inTitle.length === 2 && p.members.every((mid) => inTitle.includes(mid))),
     );
 
   // Agency uploads only count when the title itself names the group.
   if (isAgency && !titleNamesGroup) return null;
   // Search results must demonstrably be about this group (or name a recognized CP).
-  if (!isArtist && !isAgency && !textNamesGroup && !(pairing?.name && mentions(text, pairing.name)))
+  if (
+    !isArtist &&
+    !isAgency &&
+    !textNamesGroup &&
+    !(pairing && pairingNames(pairing).some((n) => mentions(text, n)))
+  )
     return null;
 
   const source_type: SourceType =
