@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowUpRight, AtSign, Check, Instagram, LockKeyhole, ShieldCheck } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Button } from "@/components/ui/button";
+import { ConnectFlowPreview } from "@/components/ConnectFlowPreview";
 
 export const Route = createFileRoute("/connections")({
   head: () => ({ meta: [
@@ -60,6 +61,7 @@ function Connections() {
           <div><p className="font-semibold">Connection setup pending</p><p className="mt-1 text-muted-foreground">{platform.name} authorization isn’t available yet. BiasBrief needs its {platform.name} connection configured and user sign-in enabled first. No account access has been granted.</p>{platform.id !== "x" && <p className="mt-2 text-muted-foreground">Available access will depend on your account and the permissions approved by {platform.name}.</p>}</div>
         </div>
         <Button disabled size="lg" className="w-full"><ArrowUpRight />Authorize with {platform.name}</Button>
+        <ConnectFlowPreview name={platform.name} permissions={["Read your profile", platform.posts, "Keep your connection active"]} />
         <p className="mt-3 text-center text-xs text-muted-foreground">When available, you’ll approve access securely on {platform.name}. You won’t share your password with BiasBrief.</p>
       </section>
       ))}
