@@ -80,9 +80,13 @@ bun run test        # unit tests: matching, ranking, dedupe, quota fallback, cur
 
 ## Team
 
-<!-- Add names, roles and links -->
-| Name | Role |
+| Name | GitHub |
 |---|---|
+| Jiatong Yin | [@jiatongy-svg](https://github.com/jiatongy-svg) |
+| Hazel Yang | [@HazelYang0105](https://github.com/HazelYang0105) |
+| Violet Qian | [@ruiyiqian](https://github.com/ruiyiqian) |
+
+---|---|
 | | Product / research |
 | | Design |
 | | Engineering |
@@ -105,6 +109,8 @@ BiasBrief 是一个**个性化 K-pop 饭圈资讯**原型：用户选好团体�
 - **统一数据模型 + 可替换的数据源适配器**：将来接入 X / TikTok 官方 API 时，前端不用改。
 - **可解释的排序**：相关度 50% + 时效 20% + 对数归一化的日均互动 30%，避免一个爆款视频霸占整个 feed。
 - **API 失败时回退到缓存，绝不用编造内容填充**；API key 只在服务端使用；缓存在用户之间共享，节省配额。
+
+**团队**：Jiatong Yin · Hazel Yang · Violet Qian
 
 **原型边界**：X / TikTok 内容是人工精选的，周报是预写好的，账号连接只是流程预览；完整个性化目前只支持 aespa。
 
